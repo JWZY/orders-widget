@@ -4,6 +4,19 @@
   box-sizing: border-box;
 }
 
+/* GUI styling */
+.lil-gui {
+  --background-color: rgba(0, 0, 0, 0.85);
+  --font-size: 11px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.lil-gui.root {
+  right: 0;
+  left: auto;
+}
+
 :root {
   --widget-width: 550px;
   --widget-height: 354px;
@@ -13,7 +26,7 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-  background: #1a1520;
+  background: #d8d4cf;
   min-height: 100vh;
   overflow: hidden;
 }
@@ -32,27 +45,30 @@ body {
   width: var(--widget-width);
   height: var(--widget-height);
   position: relative;
-  border-radius: 24px;
+  border-radius: 32px;
   overflow: hidden;
+  box-shadow:
+    0 25px 80px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .widget-glass {
   position: absolute;
   inset: 0;
-  background: rgba(20, 20, 28, 0.85);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 24px;
+  background: rgba(40, 40, 45, 0.22);
+  backdrop-filter: blur(60px) saturate(140%);
+  -webkit-backdrop-filter: blur(60px) saturate(140%);
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  border-radius: 32px;
 }
 
 .widget-highlight {
   position: absolute;
   top: 0;
-  left: 20%;
-  right: 20%;
+  left: 10%;
+  right: 10%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
   z-index: 5;
 }
 
@@ -67,69 +83,35 @@ body {
 
 .widget-left {
   width: 50%;
-  padding: 28px 24px;
+  padding: 32px 28px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
 }
 
 .widget-right {
   width: 50%;
-  padding: 28px 0 0 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 32px 0 0 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
   overflow: hidden;
 }
 
-/* ========== HEADER ========== */
-.widget-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-
-.widget-title {
-  font-size: 13px;
+/* ========== METRIC (NYC Subway style - 2 sizes only) ========== */
+.metric-eyebrow {
+  font-size: 18px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.change-badge {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 12px;
-}
-
-.change-badge.positive {
-  background: rgba(48, 209, 88, 0.18);
-  color: var(--green);
-  border: 1px solid rgba(48, 209, 88, 0.25);
-}
-
-.change-badge.negative {
-  background: rgba(255, 69, 58, 0.18);
-  color: #ff453a;
-  border: 1px solid rgba(255, 69, 58, 0.25);
-}
-
-/* ========== METRIC ========== */
-.metric-section {
-  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+  color: #fff;
+  margin-bottom: 16px;
 }
 
 .metric-value {
-  font-size: 56px;
-  font-weight: 700;
-  letter-spacing: -2px;
-  line-height: 1;
+  font-size: 72px;
+  font-weight: 600;
+  letter-spacing: -3px;
+  line-height: 0.9;
   color: #fff;
-}
-
-.metric-subtitle {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
-  margin-top: 2px;
 }
 
 /* ========== SPARKLINE ========== */
@@ -140,21 +122,17 @@ body {
   overflow: hidden;
 }
 
+/* Hide the scrim - using mask instead */
 .sparkline-scrim {
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 60px;
-  background: linear-gradient(to right, rgba(20, 20, 28, 0.95) 0%, rgba(20, 20, 28, 0.7) 50%, transparent 100%);
-  pointer-events: none;
-  z-index: 2;
+  display: none;
 }
 
 .sparkline {
   width: 100%;
   height: 60px;
   display: block;
+  mask-image: linear-gradient(to right, transparent 0%, black 30%, black 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 30%, black 100%);
 }
 
 .sparkline-bar {
@@ -191,6 +169,8 @@ body {
   height: 100%;
   position: relative;
   overflow: hidden;
+  mask-image: linear-gradient(to bottom, black 0%, black 65%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 65%, transparent 100%);
 }
 
 .feed-list {
@@ -209,6 +189,10 @@ body {
   opacity: 1;
   transform: translateY(0);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feed-item:first-child {
+  padding-top: 0;
 }
 
 .feed-item:last-child {
@@ -252,48 +236,25 @@ body {
 }
 
 .feed-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
+  font-size: 18px;
+  font-weight: 500;
+  color: #fff;
 }
 
 .feed-meta {
-  font-size: 12px;
+  font-size: 18px;
   color: rgba(255, 255, 255, 0.35);
 }
 
 .feed-amount {
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 18px;
+  font-weight: 500;
+  color: #fff;
 }
 
-/* Scrim gradient at bottom */
+/* Hide the scrim - using mask instead */
 .feed-scrim {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 80px;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(20, 20, 28, 0.7) 50%,
-    rgba(20, 20, 28, 0.95) 100%
-  );
-  pointer-events: none;
-  z-index: 3;
+  display: none;
 }
 
-/* Fading opacity for lower items */
-.feed-item:nth-child(4) {
-  opacity: 0.5;
-}
-
-.feed-item:nth-child(5) {
-  opacity: 0.25;
-}
-
-.feed-item:nth-child(n+6) {
-  opacity: 0;
-}
+/* Mask handles fading now - remove nth-child opacity */

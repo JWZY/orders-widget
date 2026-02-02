@@ -1,6 +1,20 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+
+// Local model files (downloaded from poly.pizza)
+const LOCAL_MODELS = [
+  { name: 'Fiddle Plant', file: 'Fiddle-leaf Plant.glb', pos: [-0.84, -0.50, -0.66], scale: 0.12, rotY: -1.03 },
+  { name: 'Cabinet', file: 'Cabinet Television Doo.glb', pos: [-0.51, -0.50, -0.75], scale: 1.34, rotY: 3.14 },
+  { name: 'Couch', file: 'Couch Medium.glb', pos: [1.24, -0.50, -0.54], scale: 0.23, rotY: -0.18 },
+  { name: 'Rug', file: 'Modern_Rug_01.obj', mtl: 'Modern_Rug_01.mtl', pos: [0.20, -0.50, -0.28], scale: 0.21, rotY: -1.57 },
+];
+
+// Store loaded models for GUI manipulation
+const loadedModels = {};
 
 // ============================================
 // MOCK DATA
@@ -70,19 +84,6 @@ const visibleBars = 10;
 function renderWidget() {
   // Order count
   document.getElementById('orderCount').textContent = orderData.total.toLocaleString();
-
-  // Change badge
-  const change = orderData.total - orderData.previousTotal;
-  const changePercent = ((change / orderData.previousTotal) * 100).toFixed(1);
-  const badge = document.getElementById('changeBadge');
-
-  if (change >= 0) {
-    badge.className = 'change-badge positive';
-    badge.textContent = `↑ ${changePercent}%`;
-  } else {
-    badge.className = 'change-badge negative';
-    badge.textContent = `↓ ${Math.abs(changePercent)}%`;
-  }
 
   // Sparkline (bar chart)
   renderSparkline(orderData.barData);
@@ -178,9 +179,9 @@ function simulateNewOrder() {
   }
 }
 
-// Add new order every 300-1000ms
+// Add new order every 1200-2400ms
 function scheduleNextOrder() {
-  const delay = 300 + Math.random() * 700;
+  const delay = 1200 + Math.random() * 1200;
   setTimeout(() => {
     simulateNewOrder();
     scheduleNextOrder();
@@ -193,17 +194,22 @@ scheduleNextOrder();
 // ============================================
 
 let scene, camera, renderer, cssRenderer, controls;
+let lights = {}; // Store lights for GUI control
+let mouseX = 0, mouseY = 0;
+let targetCameraX = 0, targetCameraY = 0;
+const cameraBasePos = { x: -0.02, y: 0.39, z: 1.10 };
+const cameraMoveStrength = { x: 0.15, y: 0.08 }; // How much camera moves with mouse
 
 function initScene() {
   const container = document.getElementById('scene-container');
 
   // Scene
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1a1520);
+  scene.background = new THREE.Color(0xd8d4cf);
 
   // Camera
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(0, 0.4, 1.6);
+  camera.position.set(-0.02, 0.39, 1.10);
 
   // WebGL Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -221,17 +227,14 @@ function initScene() {
   cssRenderer.domElement.style.pointerEvents = 'none';
   container.appendChild(cssRenderer.domElement);
 
-  // Controls
+  // Controls (disabled rotation/pan - mouse tracking handles movement)
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
-  controls.minDistance = 1.2;
-  controls.maxDistance = 3;
-  controls.minPolarAngle = Math.PI / 3;
-  controls.maxPolarAngle = Math.PI / 1.8;
-  controls.minAzimuthAngle = -Math.PI / 6;
-  controls.maxAzimuthAngle = Math.PI / 6;
-  controls.target.set(0, 0.3, 0);
+  controls.enableRotate = false; // Disable click-drag rotation
+  controls.enablePan = false; // Disable panning
+  controls.enableZoom = false; // Disable scroll zoom
+  controls.target.set(0, 0.30, 0);
 
   // Lighting
   setupLighting();
@@ -247,46 +250,62 @@ function initScene() {
 }
 
 function setupLighting() {
-  // Warm ambient (afternoon glow)
-  const ambient = new THREE.AmbientLight(0x806050, 0.5);
-  scene.add(ambient);
+  // Warm ambient (afternoon glow base)
+  lights.ambient = new THREE.AmbientLight(0xffeedd, 0.4);
+  scene.add(lights.ambient);
 
-  // Warm afternoon sun from left
-  const sunLight = new THREE.DirectionalLight(0xffaa77, 1.8);
-  sunLight.position.set(-3, 2.5, 1);
-  sunLight.castShadow = true;
-  sunLight.shadow.mapSize.width = 1024;
-  sunLight.shadow.mapSize.height = 1024;
-  scene.add(sunLight);
+  // Main sun - warm afternoon from upper left (creates diagonal shadows)
+  lights.sun = new THREE.DirectionalLight(0xffaa66, 1.8);
+  lights.sun.position.set(-4, 4, 2);
+  lights.sun.castShadow = true;
+  lights.sun.shadow.mapSize.width = 2048;
+  lights.sun.shadow.mapSize.height = 2048;
+  lights.sun.shadow.camera.near = 0.1;
+  lights.sun.shadow.camera.far = 20;
+  lights.sun.shadow.camera.left = -5;
+  lights.sun.shadow.camera.right = 5;
+  lights.sun.shadow.camera.top = 5;
+  lights.sun.shadow.camera.bottom = -5;
+  lights.sun.shadow.bias = -0.001;
+  scene.add(lights.sun);
 
-  // Soft fill light from right (cooler)
-  const fillLight = new THREE.DirectionalLight(0x8090a0, 0.3);
-  fillLight.position.set(2, 1, 1);
-  scene.add(fillLight);
+  // Warm bounce light (simulates light bouncing off warm surfaces)
+  lights.bounce = new THREE.DirectionalLight(0xffddaa, 0.5);
+  lights.bounce.position.set(2, 0.5, 3);
+  scene.add(lights.bounce);
 
-  // Subtle rim light from behind
-  const rimLight = new THREE.DirectionalLight(0xffd0a0, 0.4);
-  rimLight.position.set(0, 2, -2);
-  scene.add(rimLight);
+  // Cool fill light from right (sky light through window)
+  lights.fill = new THREE.DirectionalLight(0xaaccff, 0.3);
+  lights.fill.position.set(3, 2, 1);
+  scene.add(lights.fill);
+
+  // Hemisphere light (sky = warm, ground = warm wood reflection)
+  lights.hemi = new THREE.HemisphereLight(0xffeebb, 0xaa8866, 0.4);
+  scene.add(lights.hemi);
+
+  // Rim light from behind (golden hour backlight) - disabled
+  lights.rim = new THREE.DirectionalLight(0xffcc88, 0);
+  lights.rim.position.set(0, 2, -3);
+  scene.add(lights.rim);
 }
 
 function createRoom() {
-  // Back wall (warm dark purple)
+  // Back wall (light warm gray like reference)
   const wallGeo = new THREE.PlaneGeometry(8, 4);
   const wallMat = new THREE.MeshStandardMaterial({
-    color: 0x2a2535,
-    roughness: 0.9
+    color: 0xd8d4cf,
+    roughness: 0.95
   });
   const wall = new THREE.Mesh(wallGeo, wallMat);
   wall.position.set(0, 1, -1);
   wall.receiveShadow = true;
   scene.add(wall);
 
-  // Floor (warm dark)
+  // Floor (wood brown)
   const floorGeo = new THREE.PlaneGeometry(8, 6);
   const floorMat = new THREE.MeshStandardMaterial({
-    color: 0x1a1518,
-    roughness: 0.85,
+    color: 0x8b7355,
+    roughness: 0.8,
     metalness: 0
   });
   const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -294,6 +313,53 @@ function createRoom() {
   floor.position.y = -0.5;
   floor.receiveShadow = true;
   scene.add(floor);
+
+  // Load 3D furniture
+  loadFurniture();
+}
+
+function loadFurniture() {
+  const loader = new GLTFLoader();
+
+  // Load models
+  LOCAL_MODELS.forEach((modelConfig) => {
+    const addModelToScene = (model) => {
+      model.scale.setScalar(modelConfig.scale);
+      model.position.set(...modelConfig.pos);
+      model.rotation.y = modelConfig.rotY;
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      scene.add(model);
+      loadedModels[modelConfig.name] = model;
+      console.log(`✓ ${modelConfig.name} loaded`);
+    };
+
+    if (modelConfig.mtl) {
+      const mtlLoader = new MTLLoader();
+      mtlLoader.load(modelConfig.mtl, (materials) => {
+        materials.preload();
+        const objLoader = new OBJLoader();
+        objLoader.setMaterials(materials);
+        objLoader.load(modelConfig.file, (obj) => {
+          addModelToScene(obj);
+        }, undefined, (error) => {
+          console.error(`✗ Error loading ${modelConfig.name}:`, error);
+        });
+      }, undefined, (error) => {
+        console.error(`✗ Error loading MTL for ${modelConfig.name}:`, error);
+      });
+    } else {
+      loader.load(modelConfig.file, (gltf) => {
+        addModelToScene(gltf.scene);
+      }, undefined, (error) => {
+        console.error(`✗ Error loading ${modelConfig.name}:`, error);
+      });
+    }
+  });
 }
 
 function createWidget3D() {
@@ -308,10 +374,22 @@ function createWidget3D() {
   widgetObject.position.set(0, 0.5, -0.95);
 
   scene.add(widgetObject);
+
+  // Store globally for GUI control
+  window.widgetObject = widgetObject;
 }
 
 function animate() {
   requestAnimationFrame(animate);
+
+  // Smooth camera follow mouse (inverted to follow eye direction)
+  targetCameraX = cameraBasePos.x - (mouseX * cameraMoveStrength.x);
+  targetCameraY = cameraBasePos.y - (mouseY * cameraMoveStrength.y);
+
+  // Lerp for smooth movement
+  camera.position.x += (targetCameraX - camera.position.x) * 0.05;
+  camera.position.y += (targetCameraY - camera.position.y) * 0.05;
+
   controls.update();
   renderer.render(scene, camera);
   cssRenderer.render(scene, camera);
@@ -326,6 +404,13 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   cssRenderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Mouse tracking for camera movement
+window.addEventListener('mousemove', (e) => {
+  // Convert to -1 to 1 range (center = 0)
+  mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+  mouseY = -((e.clientY / window.innerHeight) * 2 - 1); // Invert Y
 });
 
 // ============================================
