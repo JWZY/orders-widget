@@ -257,7 +257,9 @@ function initScene() {
   controls.dampingFactor = 0.05;
   controls.enableRotate = false; // Disable click-drag rotation
   controls.enablePan = false; // Disable panning
-  controls.enableZoom = false; // Disable scroll zoom
+  controls.enableZoom = !isMobile;
+  controls.minDistance = 0.6;
+  controls.maxDistance = 2.5;
   controls.target.set(0, isMobile ? 0.45 : 0.30, 0);
 
   // Lighting
